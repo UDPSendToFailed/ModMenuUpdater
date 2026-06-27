@@ -1,0 +1,47 @@
+name: 🚀 Feature Request
+description: Have an idea? Pitch it!
+title: "[Feat]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 💡 Feature Proposal
+        Aiuta a migliorere ModMenuUpdater.
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: 🏷️ Category
+      options:
+        - ✨ New Feature
+        - 🎨 UI / Design Improvement
+        - ⚡ Performance / Optimization
+        - 🌐 Translation / Localization
+        - 🔧 Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 📝 What
+      description: Please write here your idea
+      placeholder: "I would love to see..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 🤝 Why do you need this?
+      description: Why is i necesary? What problem is it going to resolve?
+      placeholder: "Actualy is difficult to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 🎨 Mockups / Screenshots / Extras
+      description: Drop images or sketches here if you have them!
