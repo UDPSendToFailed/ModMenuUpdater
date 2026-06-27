@@ -1,0 +1,226 @@
+name: "🐛 Bug Report"
+description: Is something broken? Help us fix it!
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🛠️ Bug Report
+        Thank you for reporting! Please fill out the form below.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-flight Checklist
+      options:
+        - label: I am using the latest version of the mod.
+          required: true
+        - label: I checked for duplicate issues.
+          required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: 📍 Where do you think the bug is?
+      description: Select the area of the app.
+      options:
+        - 📃📦🔝 Mod Menu Updater Code
+        - ⛏️ Minecraft bug
+        - 🧩 Other mod incompatibility
+        - ❓ Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: 📉 How often does it happen?
+      options:
+        - 🔴 Always (100%)
+        - 🟠 Often (> 50%)
+        - 🟡 Sometimes (< 50%)
+        - 🟢 Rarely (Once or twice)
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce-steps
+    attributes:
+      label: 🔄 Steps to reproduce the bug
+      description: Clear steps lead to a faster fix!
+      placeholder: |
+        1. Go to ...
+        2. Tap on ...
+        3. See error
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: 🆚 Expected vs. Actual
+      description: What happened vs. what should have happened.
+      placeholder: |
+        Expected: Open Minecraft and enjoy
+        Actual: Open Minecraft and it crashes
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: "---"
+      
+  - type: dropdown
+    id: os-type
+    attributes:
+      label: 💿 What Operating System are you using?
+      options:
+        - Windows
+        - MacOS
+        - Other (please specify in the clarifications section)
+    validations:
+      required: true
+      
+  - type: dropdown
+    id: win-ver
+    attributes:
+      label: 🪟 Windows Version?
+      options:
+        - I don't use Windows
+        - Windows 11
+        - Windows 10
+        - Windows 8 / 8.1
+        - Windows 7
+        - Windows Vista
+        - Windows XP
+        - Windows Legacy Version
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mc-ver-java
+    attributes:
+      label: ⛏️ Minecraft Version?
+      options:
+        - 26.2
+        - 26.1.2
+        - 26.1.1
+        - 26.1
+        - 1.21.11
+        - 1.21.10
+        - 1.21.4
+        - Older (you usually shouldn't need to use this option)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fabric-ver
+    attributes:
+      label: 📜 Fabric Loader Version?
+      options:
+        - 0.19.3
+        - 0.19.2
+        - 0.19.1
+        - 0.19.0
+        - 0.18.6
+        - 0.18.5
+        - 0.18.4
+        - 0.18.3
+        - 0.18.2
+        - 0.18.1
+        - 0.18.0
+        - 0.17.3
+        - 0.17.2
+        - 0.17.1
+        - 0.17.0
+        - 0.16.14
+        - 0.16.13
+        - 0.16.12
+        - 0.16.10
+        - 0.16.9
+        - 0.16.8
+        - 0.16.7
+        - 0.16.6
+        - 0.16.5
+        - 0.16.4
+        - 0.16.3
+        - 0.16.2
+        - 0.16.1
+        - 0.16.0
+        - 0.15.11
+        - 0.15.10
+        - 0.15.9
+        - 0.15.8
+        - 0.15.7
+        - 0.15.6
+        - 0.15.5
+        - 0.15.4
+        - 0.15.3
+        - 0.15.2
+        - 0.15.1
+        - 0.15.0
+        - 0.14.25
+        - 0.14.23
+        - 0.14.22
+        - 0.14.21
+        - 0.14.20
+        - 0.14.19
+        - 0.14.18
+        - 0.14.17
+        - 0.11.16
+        - 0.14.15
+        - 0.14.14
+        - 0.14.13
+        - 0.14.12
+        - 0.14.11
+        - 0.14.10
+        - 0.14.9
+        - 0.14.8
+        - 0.14.7
+        - 0.14.6
+        - 0.14.5
+        - 0.14.4
+        - 0.14.3
+        - 0.14.2
+        - 0.14.1
+        - 0.14.0
+        - 0.13.3
+        - 0.13.2
+        - 0.13.1
+        - 0.13.0
+        - 0.12.12
+        - 0.12.11
+        - 0.12.10
+        - 0.12.9
+        - 0.12.8
+        - 0.12.7
+        - 0.12.6
+        - 0.12.5
+        - 0.12.4
+        - 0.12.3
+        - 0.12.2
+        - 0.12.1
+        - 0.12.0
+        - Older (you usually shouldn't need to use this option)
+    validations:
+      required: true
+      
+  - type: input
+    id: mod-version
+    attributes:
+      label: 📦 Mod Version
+      placeholder: e.g. 1.1.9
+    validations:
+      required: true
+
+  - type: textarea
+    id: clarifications
+    attributes:
+      label: 📄 Clarifications / Logs / Screenshots
+      description: Write clarifications, paste logs, or drag & drop screenshots here.
+      render: shell
