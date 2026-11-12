@@ -1,6 +1,7 @@
 {
   "modmenu.update.button.update": "Update",
   "modmenu.update.button.updateAll": "Update All",
+  "modmenu.update.button.updatingProgress": "Updating %s/%s",
   "modmenu.update.state.updating": "Updating...",
   "modmenu.update.state.updated": "Updated",
   "modmenu.update.state.widget.updated": "This mod has been updated.",
@@ -11,6 +12,9 @@
 
   "modmenu.update.toast.all.started.title": "Updates Started",
   "modmenu.update.toast.all.started.description": "Downloading %s mod updates...",
+  "modmenu.update.toast.all.finished.title": "Updates Complete",
+  "modmenu.update.toast.all.finished.description": "Downloaded %s/%s updates. Please restart your game.",
+  "modmenu.update.toast.all.finishedWithErrors.description": "Downloaded %s/%s updates (%s failed). Please restart your game.",
   "modmenu.update.toast.single.success.title": "Update Downloaded",
   "modmenu.update.toast.single.success.description": "%s has been updated. Please restart your game.",
   

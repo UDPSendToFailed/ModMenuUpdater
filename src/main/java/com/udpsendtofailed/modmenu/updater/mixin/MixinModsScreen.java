@@ -9,6 +9,7 @@ import com.udpsendtofailed.modmenu.updater.ModUpdaterService;
 import com.udpsendtofailed.modmenu.updater.api.ModExtension;
 import com.udpsendtofailed.modmenu.updater.api.UpdateInfoExtension;
 import com.terraformersmc.modmenu.util.mod.Mod;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.components.Button;
@@ -36,6 +37,11 @@ public abstract class MixinModsScreen extends Screen {
     @Shadow private DescriptionListWidget descriptionListWidget;
     @Shadow private SpriteIconButton configureButton;
 
+    @Unique private static final Component UPDATE_ALL_TEXT = Component.translatable("modmenu.update.button.updateAll");
+    @Unique private static final Component UPDATE_TEXT = Component.translatable("modmenu.update.button.update");
+    @Unique private static final Component UPDATING_TEXT = Component.translatable("modmenu.update.state.updating");
+    @Unique private static final Component UPDATED_TEXT = Component.translatable("modmenu.update.state.updated");
+
     @Unique private ModUpdaterService updater;
     @Unique private AbstractWidget updateButton;
     @Unique private AbstractWidget updateAllButton;
@@ -45,7 +51,7 @@ public abstract class MixinModsScreen extends Screen {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void initService(Screen previous, CallbackInfo ci) {
-        this.updater = new ModUpdaterService((ModsScreen)(Object)this);
+        this.updater = new ModUpdaterService();
     }
 
     @Inject(method = "init", at = @At("TAIL"))
@@ -57,7 +63,7 @@ public abstract class MixinModsScreen extends Screen {
         // Update All Button
         if (updateChecksEnabled) {
             if (this.updateAllButton == null) {
-                this.updateAllButton = Button.builder(Component.translatable("modmenu.update.button.updateAll"), b -> updater.performUpdateAll())
+                this.updateAllButton = Button.builder(UPDATE_ALL_TEXT, b -> updater.performUpdateAll())
                     .size(0, 20)
                     .build();
                 this.updateAllButton.setTooltip(Tooltip.create(Component.translatable("modmenu.update.tooltip.all")));
@@ -72,7 +78,7 @@ public abstract class MixinModsScreen extends Screen {
         // Update Button (Single)
         if (updateChecksEnabled) {
             if (this.updateButton == null) {
-                this.updateButton = Button.builder(Component.translatable("modmenu.update.button.update"), b -> {
+                this.updateButton = Button.builder(UPDATE_TEXT, b -> {
                     if (selected != null) {
                         updater.performUpdate(selected.getMod());
                         this.descriptionListWidget.updateSelectedMod(selected.getMod());
@@ -90,10 +96,12 @@ public abstract class MixinModsScreen extends Screen {
         }
 
         // --- 2. PRECISE LAYOUT CALCULATION ---
-        // Only run layout math if we are actually rendering the buttons
-        
-        Component updateAllText = Component.translatable("modmenu.update.button.updateAll");
-        int updateAllButtonWidth = updateChecksEnabled ? this.font.width(updateAllText) + 20 : 0;
+        int updateAllButtonWidth = updateChecksEnabled
+                ? Math.max(
+                        this.font.width(UPDATE_ALL_TEXT),
+                        this.font.width(Component.translatable("modmenu.update.button.updatingProgress", 999, 999))
+                  ) + 20
+                : 0;
         int updateAllGap = updateChecksEnabled ? 2 : 0;
         int filtersButtonSize = (ModMenuConfig.CONFIG_MODE.getValue() ? 0 : 22);
 
@@ -129,22 +137,13 @@ public abstract class MixinModsScreen extends Screen {
             int issuesButtonX = this.rightPaneX + urlButtonWidths + 4 + (urlButtonWidths / 2) - (cappedButtonWidth / 2);
             this.cachedIssuesRightAlign = issuesButtonX + cappedButtonWidth;
             int updateButtonWidth = Math.max(
-                    this.font.width(Component.translatable("modmenu.update.state.updating")),
-                    Math.max(
-                            this.font.width(Component.translatable("modmenu.update.state.updated")),
-                            this.font.width(Component.translatable("modmenu.update.button.update"))
-                    )
+                    this.font.width(UPDATING_TEXT),
+                    Math.max(this.font.width(UPDATED_TEXT), this.font.width(UPDATE_TEXT))
             ) + 10;
             
             this.updateButton.setWidth(updateButtonWidth);
             this.updateButton.setY(48);
-
-            boolean configVisible = this.configureButton != null && this.configureButton.visible;
-            if (configVisible) {
-                this.updateButton.setX(this.cachedIssuesRightAlign - 20 - updateButtonWidth - 2);
-            } else {
-                this.updateButton.setX(this.cachedIssuesRightAlign - updateButtonWidth);
-            }
+            positionUpdateButton();
             
             // Re-apply configure button pos
             if (this.configureButton != null) {
@@ -153,18 +152,39 @@ public abstract class MixinModsScreen extends Screen {
         }
     }
 
+    @Unique
+    private void positionUpdateButton() {
+        boolean configVisible = this.configureButton != null && this.configureButton.visible;
+        if (configVisible) {
+            this.updateButton.setX(this.cachedIssuesRightAlign - 20 - this.updateButton.getWidth() - 2);
+        } else {
+            this.updateButton.setX(this.cachedIssuesRightAlign - this.updateButton.getWidth());
+        }
+    }
+
     @Inject(method = "extractRenderState", at = @At("HEAD"))
     private void updateButtonState(CallbackInfo ci) {
         if (updateAllButton != null) {
-            boolean anyUpdates = ModMenu.MODS.values().stream().anyMatch(m ->
-                m instanceof ModExtension ext
-                && m.hasUpdate()
-                && !ext.isUpdateDownloaded()
-                && !ext.isDownloadingUpdate()
-                && m.getUpdateInfo() instanceof UpdateInfoExtension uie
-                && uie.getDownloadUrl() != null
-            );
-            updateAllButton.active = anyUpdates;
+            if (ModUpdaterService.isBatchActive()) {
+                updateAllButton.active = false;
+                updateAllButton.setMessage(Component.translatable(
+                        "modmenu.update.button.updatingProgress",
+                        ModUpdaterService.getBatchCompleted(),
+                        ModUpdaterService.getBatchTotal()));
+            } else {
+                if (!updateAllButton.getMessage().equals(UPDATE_ALL_TEXT)) {
+                    updateAllButton.setMessage(UPDATE_ALL_TEXT);
+                }
+                boolean anyUpdates = ModMenu.MODS.values().stream().anyMatch(m ->
+                    m instanceof ModExtension ext
+                    && m.hasUpdate()
+                    && !ext.isUpdateDownloaded()
+                    && !ext.isDownloadingUpdate()
+                    && m.getUpdateInfo() instanceof UpdateInfoExtension uie
+                    && uie.getDownloadUrl() != null
+                );
+                updateAllButton.active = anyUpdates;
+            }
         }
 
         if (selected != null) {
@@ -181,31 +201,42 @@ public abstract class MixinModsScreen extends Screen {
             
             if (updateButton != null) {
                 updateButton.visible = hasUrl || ext.isUpdateDownloaded();
-                
-                boolean configVisible = this.configureButton != null && this.configureButton.visible;
-                
-                if (configVisible) {
-                    updateButton.setX(this.cachedIssuesRightAlign - 20 - updateButton.getWidth() - 2);
-                } else {
-                    updateButton.setX(this.cachedIssuesRightAlign - updateButton.getWidth());
-                }
+                positionUpdateButton();
 
                 if (ext.isDownloadingUpdate()) {
-                    updateButton.setMessage(Component.translatable("modmenu.update.state.updating"));
+                    updateButton.setMessage(UPDATING_TEXT);
                     updateButton.active = false;
                 } else if (ext.isUpdateDownloaded()) {
-                    if (updateButton.active || !updateButton.getMessage().equals(Component.translatable("modmenu.update.state.updated"))) {
-                        updateButton.setMessage(Component.translatable("modmenu.update.state.updated"));
+                    if (updateButton.active || !updateButton.getMessage().equals(UPDATED_TEXT)) {
+                        updateButton.setMessage(UPDATED_TEXT);
                         updateButton.active = false;
                         this.descriptionListWidget.updateSelectedMod(mod);
                     }
                 } else {
-                    updateButton.setMessage(Component.translatable("modmenu.update.button.update"));
+                    updateButton.setMessage(UPDATE_TEXT);
                     updateButton.active = mod.hasUpdate();
                 }
             }
         } else {
             if (updateButton != null) updateButton.visible = false;
+        }
+    }
+
+    @Inject(method = "extractRenderState", at = @At("TAIL"))
+    private void renderBatchProgress(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (this.updateAllButton != null && this.updateAllButton.visible && ModUpdaterService.isBatchActive()) {
+            int total = ModUpdaterService.getBatchTotal();
+            int done = ModUpdaterService.getBatchCompleted();
+            if (total > 0) {
+                int x = this.updateAllButton.getX() + 2;
+                int y = this.updateAllButton.getY() + this.updateAllButton.getHeight() - 3;
+                int barWidth = this.updateAllButton.getWidth() - 4;
+                int fillWidth = Math.round(barWidth * Math.min(1.0f, (float) done / total));
+                graphics.fill(x, y, x + barWidth, y + 2, 0x80000000);
+                if (fillWidth > 0) {
+                    graphics.fill(x, y, x + fillWidth, y + 2, 0xFF55FF55);
+                }
+            }
         }
     }
 }
