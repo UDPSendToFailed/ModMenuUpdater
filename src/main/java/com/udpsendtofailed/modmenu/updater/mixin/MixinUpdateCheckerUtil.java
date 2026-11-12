@@ -4,17 +4,14 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.terraformersmc.modmenu.util.UpdateCheckerUtil;
+import com.udpsendtofailed.modmenu.updater.ModMenuUpdater;
 import com.udpsendtofailed.modmenu.updater.UpdateDataStorage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(UpdateCheckerUtil.class)
 public class MixinUpdateCheckerUtil {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Mod Menu Updater");
-
     @Redirect(
         method = "getUpdatedVersions", 
         at = @At(
@@ -40,16 +37,22 @@ public class MixinUpdateCheckerUtil {
                         JsonObject file = primaryFileOpt.get().getAsJsonObject();
                         String url = file.get("url").getAsString();
                         String filename = file.get("filename").getAsString();
-                        String hash = file.get("hashes").getAsJsonObject().get("sha512").getAsString();
-                        
+                        String hash = null;
+                        if (file.has("hashes") && file.get("hashes").isJsonObject()) {
+                            JsonObject hashes = file.getAsJsonObject("hashes");
+                            if (hashes.has("sha512") && hashes.get("sha512").isJsonPrimitive()) {
+                                hash = hashes.get("sha512").getAsString();
+                            }
+                        }
+
                         UpdateDataStorage.DOWNLOAD_CACHE.put(versionId, new UpdateDataStorage.DownloadData(url, filename, hash));
                     }
                 } catch (Exception e) {
-                    LOGGER.debug("Failed to parse download info for version entry", e);
+                    ModMenuUpdater.LOGGER.debug("Failed to parse download info for version entry", e);
                 }
             });
         } catch (Exception e) {
-            LOGGER.debug("Failed to parse Modrinth update response for download info", e);
+            ModMenuUpdater.LOGGER.debug("Failed to parse Modrinth update response for download info", e);
         }
 
         return result;
