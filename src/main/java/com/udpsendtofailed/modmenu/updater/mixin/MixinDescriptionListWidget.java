@@ -3,6 +3,7 @@ package com.udpsendtofailed.modmenu.updater.mixin;
 import com.terraformersmc.modmenu.config.option.BooleanConfigOption;
 import com.terraformersmc.modmenu.gui.widget.DescriptionListWidget;
 import com.terraformersmc.modmenu.util.mod.Mod;
+import com.udpsendtofailed.modmenu.updater.ModMenuUpdater;
 import com.udpsendtofailed.modmenu.updater.api.DescriptionEntryExtension;
 import com.udpsendtofailed.modmenu.updater.api.ModExtension;
 import net.minecraft.client.gui.components.AbstractSelectionList;
@@ -10,8 +11,6 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.network.chat.Component;
 import net.minecraft.ChatFormatting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,7 +20,7 @@ import java.lang.reflect.Constructor;
 
 @Mixin(DescriptionListWidget.class)
 public abstract class MixinDescriptionListWidget {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Mod Menu Updater");
+    private static volatile Constructor<?> entryConstructor;
 
     @Shadow private Mod selectedMod;
     @Shadow private Font textRenderer;
@@ -31,7 +30,8 @@ public abstract class MixinDescriptionListWidget {
         method = "rebuildUI", 
         at = @At(
             value = "INVOKE", 
-            target = "Lcom/terraformersmc/modmenu/config/option/BooleanConfigOption;getValue()Z"
+            target = "Lcom/terraformersmc/modmenu/config/option/BooleanConfigOption;getValue()Z",
+            ordinal = 0
         )
     )
     private boolean interceptUpdateCheck(BooleanConfigOption instance) {
@@ -58,16 +58,22 @@ public abstract class MixinDescriptionListWidget {
         return originalValue;
     }
 
-    @SuppressWarnings("unchecked")
+    private static Constructor<?> getEntryConstructor() throws ReflectiveOperationException {
+        Constructor<?> ctor = entryConstructor;
+        if (ctor == null) {
+            Class<?> entryClass = Class.forName(
+                    "com.terraformersmc.modmenu.gui.widget.DescriptionListWidget$DescriptionEntry");
+            ctor = entryClass.getDeclaredConstructor(DescriptionListWidget.class, FormattedCharSequence.class);
+            ctor.setAccessible(true);
+            entryConstructor = ctor;
+        }
+        return ctor;
+    }
+
     private void addDescriptionEntry(FormattedCharSequence text, boolean isBadge) {
         try {
             DescriptionListWidget self = (DescriptionListWidget) (Object) this;
-
-            Class<?> entryClass = Class.forName(
-                    "com.terraformersmc.modmenu.gui.widget.DescriptionListWidget$DescriptionEntry");
-            Constructor<?> ctor = entryClass.getDeclaredConstructor(DescriptionListWidget.class, FormattedCharSequence.class);
-            ctor.setAccessible(true);
-            var entry = (AbstractSelectionList.Entry<?>) ctor.newInstance(self, text);
+            var entry = (AbstractSelectionList.Entry<?>) getEntryConstructor().newInstance(self, text);
 
             if (isBadge && entry instanceof DescriptionEntryExtension ext) {
                 ext.setUpdateBadge(true);
@@ -75,7 +81,7 @@ public abstract class MixinDescriptionListWidget {
 
             ((DescriptionListWidgetAccessor) self).invokeAddEntry(entry);
         } catch (Exception e) {
-            LOGGER.error("Failed to add description entry", e);
+            ModMenuUpdater.LOGGER.error("Failed to add description entry", e);
         }
     }
 }
