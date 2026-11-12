@@ -16,15 +16,20 @@ import java.util.Map;
 import java.util.Optional;
 
 public class BackupManager {
-    private static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir().resolve("modmenu_updater");
-    private static final Path BACKUP_DIR = CONFIG_DIR.resolve("backups");
-    private static final Path INDEX_FILE = BACKUP_DIR.resolve("backups.json");
     private static final Gson GSON = new Gson();
     private static final Type MAP_TYPE = new TypeToken<Map<String, String>>() {}.getType();
 
     private record ModJarInfo(String id) {}
 
+    private static Path defaultBackupDir() {
+        return FabricLoader.getInstance().getConfigDir().resolve("modmenu_updater").resolve("backups");
+    }
+
     public static synchronized boolean performBackup(Path fileToBackup) {
+        return performBackup(fileToBackup, defaultBackupDir());
+    }
+
+    static synchronized boolean performBackup(Path fileToBackup, Path backupDir) {
         if (!Files.exists(fileToBackup)) {
             return true;
         }
@@ -32,15 +37,16 @@ public class BackupManager {
         Optional<ModJarInfo> modInfo = readModInfo(fileToBackup);
         if (modInfo.isEmpty()) {
             ModMenuUpdater.LOGGER.warn("Could not read mod info from {}, moving to backups without cleanup.", fileToBackup.getFileName());
-            return moveWithoutCleanup(fileToBackup);
+            return moveWithoutCleanup(fileToBackup, backupDir);
         }
 
         try {
-            if (!Files.exists(BACKUP_DIR)) {
-                Files.createDirectories(BACKUP_DIR);
+            if (!Files.exists(backupDir)) {
+                Files.createDirectories(backupDir);
             }
 
-            Map<String, String> index = readIndex();
+            Path indexFile = backupDir.resolve("backups.json");
+            Map<String, String> index = readIndex(indexFile);
 
             if (index.containsKey(modInfo.get().id())) {
                 Path oldBackupPath = Paths.get(index.get(modInfo.get().id()));
@@ -48,10 +54,10 @@ public class BackupManager {
                 Files.deleteIfExists(oldBackupPath);
             }
 
-            Path destination = BACKUP_DIR.resolve(fileToBackup.getFileName());
+            Path destination = backupDir.resolve(fileToBackup.getFileName());
             Files.move(fileToBackup, destination, StandardCopyOption.REPLACE_EXISTING);
             index.put(modInfo.get().id(), destination.toAbsolutePath().toString());
-            writeIndex(index);
+            writeIndex(indexFile, index);
             ModMenuUpdater.LOGGER.info("Backed up {} to {}", fileToBackup.getFileName(), destination.getFileName());
             return true;
 
@@ -61,12 +67,12 @@ public class BackupManager {
         }
     }
 
-    private static boolean moveWithoutCleanup(Path file) {
+    private static boolean moveWithoutCleanup(Path file, Path backupDir) {
         try {
-            if (!Files.exists(BACKUP_DIR)) {
-                Files.createDirectories(BACKUP_DIR);
+            if (!Files.exists(backupDir)) {
+                Files.createDirectories(backupDir);
             }
-            Path destination = BACKUP_DIR.resolve(file.getFileName());
+            Path destination = backupDir.resolve(file.getFileName());
             Files.move(file, destination, StandardCopyOption.REPLACE_EXISTING);
             return true;
         } catch (IOException e) {
@@ -91,11 +97,11 @@ public class BackupManager {
         }
     }
 
-    private static Map<String, String> readIndex() {
-        if (!Files.exists(INDEX_FILE)) {
+    private static Map<String, String> readIndex(Path indexFile) {
+        if (!Files.exists(indexFile)) {
             return new HashMap<>();
         }
-        try (Reader reader = Files.newBufferedReader(INDEX_FILE)) {
+        try (Reader reader = Files.newBufferedReader(indexFile)) {
             Map<String, String> index = GSON.fromJson(reader, MAP_TYPE);
             return index != null ? new HashMap<>(index) : new HashMap<>();
         } catch (IOException e) {
@@ -104,8 +110,8 @@ public class BackupManager {
         }
     }
 
-    private static void writeIndex(Map<String, String> index) {
-        try (Writer writer = Files.newBufferedWriter(INDEX_FILE)) {
+    private static void writeIndex(Path indexFile, Map<String, String> index) {
+        try (Writer writer = Files.newBufferedWriter(indexFile)) {
             GSON.toJson(index, writer);
         } catch (IOException e) {
             ModMenuUpdater.LOGGER.error("Failed to write backup index", e);
