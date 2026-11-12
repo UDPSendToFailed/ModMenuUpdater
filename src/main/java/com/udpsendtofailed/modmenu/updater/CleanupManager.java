@@ -3,8 +3,6 @@ package com.udpsendtofailed.modmenu.updater;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import net.fabricmc.loader.api.FabricLoader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -13,12 +11,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class CleanupManager {
-    private static final Logger LOGGER = LoggerFactory.getLogger("Mod Menu Updater");
-
     private static final Path CONFIG_DIR = FabricLoader.getInstance().getConfigDir().resolve("modmenu_updater");
     private static final Path CLEANUP_FILE = CONFIG_DIR.resolve("cleanup.json");
     private static final Gson GSON = new Gson();
@@ -32,7 +27,7 @@ public class CleanupManager {
             List<String> paths = GSON.fromJson(reader, LIST_TYPE);
             return paths != null ? new ArrayList<>(paths) : new ArrayList<>();
         } catch (Exception e) {
-            LOGGER.error("Failed to read cleanup file", e);
+            ModMenuUpdater.LOGGER.error("Failed to read cleanup file", e);
             return new ArrayList<>();
         }
     }
@@ -46,16 +41,19 @@ public class CleanupManager {
                 GSON.toJson(paths, writer);
             }
         } catch (Exception e) {
-            LOGGER.error("Failed to write cleanup file", e);
+            ModMenuUpdater.LOGGER.error("Failed to write cleanup file", e);
         }
     }
 
     public static synchronized void scheduleForCleanup(Path path) {
         if (path == null) return;
+        String abs = path.toAbsolutePath().toString();
         List<String> paths = readPaths();
-        paths.add(path.toAbsolutePath().toString());
-        writePaths(paths);
-        LOGGER.info("Scheduled {} for cleanup on next launch.", path.getFileName());
+        if (!paths.contains(abs)) {
+            paths.add(abs);
+            writePaths(paths);
+            ModMenuUpdater.LOGGER.info("Scheduled {} for cleanup on next launch.", path.getFileName());
+        }
     }
 
     public static void performCleanup() {
@@ -63,14 +61,17 @@ public class CleanupManager {
         if (pathsToClean.isEmpty()) {
             return;
         }
-        LOGGER.info("Performing cleanup of {} old mod files...", pathsToClean.size());
+        ModMenuUpdater.LOGGER.info("Performing cleanup of {} old mod files...", pathsToClean.size());
 
-        BackupManager backupManager = new BackupManager();
+        List<String> remaining = new ArrayList<>();
         for (String pathStr : pathsToClean) {
             Path fileToClean = Paths.get(pathStr);
-            backupManager.performBackup(fileToClean);
+            if (!BackupManager.performBackup(fileToClean)) {
+                ModMenuUpdater.LOGGER.warn("Could not clean up {}; keeping in cleanup queue.", fileToClean.getFileName());
+                remaining.add(pathStr);
+            }
         }
-        
-        writePaths(Collections.emptyList());
+
+        writePaths(remaining);
     }
 }
